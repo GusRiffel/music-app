@@ -13,8 +13,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Log4j2
 @RestController
@@ -35,13 +35,14 @@ public class SongController {
     }
 
     @GetMapping(path = "/test/{artist}")
-    public Flux<APIResponseDto> test(@PathVariable String artist) {
+    public List<Object> test(@PathVariable String artist) {
         String composedUrl = baseUrl + artist;
         Mono<APIResponseDto> apiResponseDtoMono = request(composedUrl);
         Mono<String> nextMono = apiResponseDtoMono.map(APIResponseDto::getNext);
         String nextPage = nextMono.block();
+        assert nextPage != null;
         String startURL = nextPage.substring(0, nextPage.length() - 2)+ 0;
-        return getAllPages(startURL);
+        return getAllPages(startURL).map(APIResponseDto::getData).toStream().flatMap(Collection::stream).toList();
     }
 
     private Mono<APIResponseDto> request(String url) {

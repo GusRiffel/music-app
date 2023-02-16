@@ -9,7 +9,7 @@ import java.util.Map;
 @Data
 public class Artist {
 
-    @JsonProperty("CachorroPicles")
+    @JsonProperty("title")
     private Object artistDetails;
 
     @JsonProperty
