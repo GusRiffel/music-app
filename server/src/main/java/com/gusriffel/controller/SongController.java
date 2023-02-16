@@ -1,6 +1,8 @@
 package com.gusriffel.controller;
 
+import com.gusriffel.domain.Artist;
 import com.gusriffel.dto.APIResponseDto;
+import com.gusriffel.dto.ArtistInfoDto;
 import lombok.extern.log4j.Log4j2;
 import org.apache.el.stream.Stream;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,14 +37,20 @@ public class SongController {
     }
 
     @GetMapping(path = "/test/{artist}")
-    public List<Object> test(@PathVariable String artist) {
+    public Object test(@PathVariable String artist) {
         String composedUrl = baseUrl + artist;
         Mono<APIResponseDto> apiResponseDtoMono = request(composedUrl);
         Mono<String> nextMono = apiResponseDtoMono.map(APIResponseDto::getNext);
         String nextPage = nextMono.block();
         assert nextPage != null;
         String startURL = nextPage.substring(0, nextPage.length() - 2)+ 0;
-        return getAllPages(startURL).map(APIResponseDto::getData).toStream().flatMap(Collection::stream).toList();
+        List<ArtistInfoDto> artists =
+                getAllPages(startURL).map(APIResponseDto::getData).toStream().flatMap(Collection::stream).toList();
+
+
+//        List<Object> artists =
+//                getAllPages(startURL).map(APIResponseDto::getData).toStream().flatMap(Collection::stream).toList();
+        return artists;
     }
 
     private Mono<APIResponseDto> request(String url) {
