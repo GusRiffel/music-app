@@ -1,10 +1,8 @@
 package com.gusriffel.controller;
 
-import com.gusriffel.domain.Artist;
 import com.gusriffel.dto.APIResponseDto;
 import com.gusriffel.dto.ArtistInfoDto;
 import lombok.extern.log4j.Log4j2;
-import org.apache.el.stream.Stream;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -16,7 +14,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Log4j2
 @RestController
@@ -44,13 +44,29 @@ public class SongController {
         String nextPage = nextMono.block();
         assert nextPage != null;
         String startURL = nextPage.substring(0, nextPage.length() - 2)+ 0;
-        List<ArtistInfoDto> artists =
+        List<ArtistInfoDto> artistInfoDto =
                 getAllPages(startURL).map(APIResponseDto::getData).toStream().flatMap(Collection::stream).toList();
 
-
-//        List<Object> artists =
-//                getAllPages(startURL).map(APIResponseDto::getData).toStream().flatMap(Collection::stream).toList();
-        return artists;
+        return artistInfoDto.stream()
+                .filter(track -> track.getArtistName().equalsIgnoreCase(artist))
+                .collect(Collectors.groupingBy(
+                        ArtistInfoDto::getArtistName,
+                        Collectors.groupingBy(
+                                ArtistInfoDto::getAlbumTitle,
+                                Collectors.mapping(ArtistInfoDto::getTrackTitle, Collectors.toList())
+                        )
+                ))
+                .entrySet().stream()
+                .map(entry -> Map.of(
+                        "artistName", entry.getKey(),
+                        "albums", entry.getValue().entrySet().stream()
+                                .map(albumEntry -> Map.of(
+                                        "albumTitle", albumEntry.getKey(),
+                                        "tracks", albumEntry.getValue()
+                                ))
+                                .toList()
+                ))
+                .toList();
     }
 
     private Mono<APIResponseDto> request(String url) {
