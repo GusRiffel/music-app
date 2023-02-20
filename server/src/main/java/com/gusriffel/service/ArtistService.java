@@ -2,7 +2,6 @@ package com.gusriffel.service;
 
 import com.gusriffel.dto.APIResponseDto;
 import com.gusriffel.dto.ArtistDto;
-import com.gusriffel.dto.ArtistInfoDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -31,51 +30,22 @@ public class ArtistService {
                 .build();
     }
 
-    public List<ArtistDto> getArtist(String artist) {
-        return initialRequest(artist);
+    public Object getArtist(String artist) {
+        List<ArtistDto> artistDtos = artistRequest(artist);
+        Object o = formatRequest(artistDtos);
+        return o;
 
     }
 
-//    public Object artist(String artist) {
-//        String composedUrl = baseUrl + artist;
-//        Mono<APIResponseDto> apiResponseDtoMono = request(composedUrl);
-//        Mono<String> nextMono = apiResponseDtoMono.map(APIResponseDto::getNext);
-//        String nextPage = nextMono.block();
-//        assert nextPage != null;
-//        String startURL = nextPage.substring(0, nextPage.length() - 2)+ 0;
-//        List<ArtistInfoDto> artistInfoDto =
-//                getAllPages(startURL).map(APIResponseDto::getData).toStream().flatMap(Collection::stream).toList();
-//
-//        return artistInfoDto.stream()
-//                .filter(track -> track.getArtistName().equalsIgnoreCase(artist))
-//                .collect(Collectors.groupingBy(
-//                        ArtistInfoDto::getArtistName,
-//                        Collectors.groupingBy(
-//                                ArtistInfoDto::getAlbumTitle,
-//                                Collectors.mapping(ArtistInfoDto::getTrackTitle, Collectors.toList())
-//                        )
-//                ))
-//                .entrySet().stream()
-//                .map(entry -> Map.of(
-//                        "artistName", entry.getKey(),
-//                        "albums", entry.getValue().entrySet().stream()
-//                                .map(albumEntry -> Map.of(
-//                                        "albumTitle", albumEntry.getKey(),
-//                                        "tracks", albumEntry.getValue()
-//                                ))
-//                                .toList()
-//                ))
-//                .toList();
-//    }
-    private List<ArtistDto> initialRequest(String artist) {
+    private List<ArtistDto> artistRequest(String artist) {
         String composedUrl = baseUrl + artist;
         Mono<APIResponseDto> apiResponseDtoMono = request(composedUrl);
         Mono<String> nextMono = apiResponseDtoMono.map(APIResponseDto::getNext);
         String nextPage = nextMono.block();
         assert nextPage != null;
-        String startURL = nextPage.substring(0, nextPage.length() - 2)+ 0;
+        String startURL = nextPage.substring(0, nextPage.length() - 2) + 0;
 
-        return getAllPages(startURL)
+        return getAllRequestPages(startURL)
                 .map(APIResponseDto::getData)
                 .toStream()
                 .flatMap(Collection::stream)
@@ -92,7 +62,7 @@ public class ArtistService {
                 .bodyToMono(APIResponseDto.class);
     }
 
-    private Flux<APIResponseDto> getAllPages(String url) {
+    private Flux<APIResponseDto> getAllRequestPages(String url) {
         return request(url)
                 .expand(data -> {
                     String getNextPage = data.getNext();
@@ -102,5 +72,27 @@ public class ArtistService {
                         return request(data.getNext());
                     }
                 });
+    }
+
+    private Object formatRequest(List<ArtistDto> artistDto) {
+        return artistDto.stream()
+                .collect(Collectors.groupingBy(
+                        ArtistDto::getArtist,
+                        Collectors.groupingBy(
+                                ArtistDto::getAlbum,
+                                Collectors.mapping(ArtistDto::getTrack, Collectors.toList())
+                        )
+                ))
+                .entrySet().stream()
+                .map(entry -> Map.of(
+                        "Artist", entry.getKey(),
+                        "Albums", entry.getValue().entrySet().stream()
+                                .map(albumEntry -> Map.of(
+                                        "AlbumInfo", albumEntry.getKey(),
+                                        "Tracks", albumEntry.getValue()
+                                ))
+                                .toList()
+                ))
+                .toList();
     }
 }
