@@ -12,8 +12,6 @@ import reactor.core.publisher.Mono;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 public class ArtistService {
@@ -31,9 +29,7 @@ public class ArtistService {
     }
 
     public Object getArtist(String artist) {
-        List<ArtistDto> artistDtos = artistRequest(artist);
-        Object o = formatRequest(artistDtos);
-        return o;
+        return  artistRequest(artist);
 
     }
 
@@ -49,7 +45,7 @@ public class ArtistService {
                 .map(APIResponseDto::getData)
                 .toStream()
                 .flatMap(Collection::stream)
-                .filter(artistDto -> artistDto.getArtist().get("name").equalsIgnoreCase(artist))
+                //.filter(artistDto -> artistDto.getArtist().get("name").equalsIgnoreCase(artist))
                 .toList();
     }
 
@@ -74,25 +70,25 @@ public class ArtistService {
                 });
     }
 
-    private Object formatRequest(List<ArtistDto> artistDto) {
-        return artistDto.stream()
-                .collect(Collectors.groupingBy(
-                        ArtistDto::getArtist,
-                        Collectors.groupingBy(
-                                ArtistDto::getAlbum,
-                                Collectors.mapping(ArtistDto::getTrack, Collectors.toList())
-                        )
-                ))
-                .entrySet().stream()
-                .map(entry -> Map.of(
-                        "Artist", entry.getKey(),
-                        "Albums", entry.getValue().entrySet().stream()
-                                .map(albumEntry -> Map.of(
-                                        "AlbumInfo", albumEntry.getKey(),
-                                        "Tracks", albumEntry.getValue()
-                                ))
-                                .toList()
-                ))
-                .toList();
-    }
+//    private Object formatRequest(List<ArtistDto> artistDto) {
+//        return artistDto.stream()
+//                .collect(Collectors.groupingBy(
+//                        ArtistDto::getArtist,
+//                        Collectors.groupingBy(
+//                                ArtistDto::getAlbum,
+//                                Collectors.mapping(ArtistDto::getTrack, Collectors.toList())
+//                        )
+//                ))
+//                .entrySet().stream()
+//                .map(entry -> Map.of(
+//                        "Artist", entry.getKey(),
+//                        "Albums", entry.getValue().entrySet().stream()
+//                                .map(albumEntry -> Map.of(
+//                                        "AlbumInfo", albumEntry.getKey(),
+//                                        "Tracks", albumEntry.getValue()
+//                                ))
+//                                .toList()
+//                ))
+//                .toList();
+//    }
 }
