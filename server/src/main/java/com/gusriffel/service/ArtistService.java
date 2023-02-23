@@ -1,7 +1,10 @@
 package com.gusriffel.service;
 
 import com.gusriffel.dto.APIResponseDto;
+import com.gusriffel.dto.AlbumDto;
 import com.gusriffel.dto.ArtistDto;
+import com.gusriffel.dto.TrackDto;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -10,8 +13,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class ArtistService {
@@ -29,8 +34,13 @@ public class ArtistService {
     }
 
     public Object getArtist(String artist) {
-        return  artistRequest(artist);
-
+        List<ArtistDto> artistDtos = artistRequest(artist);
+        List<AlbumDto> albumDtos = artistDtos.stream().map(ArtistDto::getAlbums).flatMap(Collection::stream).toList();
+        List<AlbumDto> filteredAlbums = new ArrayList<>(albumDtos.stream()
+                .distinct()
+                .collect(Collectors.toMap(AlbumDto::getTitle, Function.identity(), (album1, album2) -> album1))
+                .values());
+        return filteredAlbums.size();
     }
 
     private List<ArtistDto> artistRequest(String artist) {
@@ -45,7 +55,7 @@ public class ArtistService {
                 .map(APIResponseDto::getData)
                 .toStream()
                 .flatMap(Collection::stream)
-                //.filter(artistDto -> artistDto.getArtist().get("name").equalsIgnoreCase(artist))
+                .filter(artistDto -> artistDto.getName().equalsIgnoreCase(artist))
                 .toList();
     }
 
@@ -70,25 +80,34 @@ public class ArtistService {
                 });
     }
 
-//    private Object formatRequest(List<ArtistDto> artistDto) {
-//        return artistDto.stream()
-//                .collect(Collectors.groupingBy(
-//                        ArtistDto::getArtist,
-//                        Collectors.groupingBy(
-//                                ArtistDto::getAlbum,
-//                                Collectors.mapping(ArtistDto::getTrack, Collectors.toList())
-//                        )
-//                ))
-//                .entrySet().stream()
-//                .map(entry -> Map.of(
-//                        "Artist", entry.getKey(),
-//                        "Albums", entry.getValue().entrySet().stream()
-//                                .map(albumEntry -> Map.of(
-//                                        "AlbumInfo", albumEntry.getKey(),
-//                                        "Tracks", albumEntry.getValue()
-//                                ))
-//                                .toList()
-//                ))
-//                .toList();
+//    private ArtistDto formatRequest(List<ArtistDto> artistDto) {
+//        List<AlbumDto> albumDtos = artistDto.stream().map(ArtistDto::getAlbums).flatMap(Collection::stream).toList();
+////        ArtistDto.builder()
+////                .name(artistDto.get(0).getName())
+////                .pictureSmall(artistDto.get(0).getPictureSmall())
+////                .pictureMedium(artistDto.get(0).getPictureMedium())
+////                .pictureBig(artistDto.get(0).getPictureBig())
+////                .pictureXL(artistDto.get(0).getPictureXL())
+////                .albums(
+////                ))
+////        return artistDto.stream()
+////                .collect(Collectors.groupingBy(
+////                        ArtistDto::getName,
+////                        Collectors.groupingBy(
+////                                ArtistDto::getAlbums,
+////                                Collectors.mapping(ArtistDto::getName, Collectors.toList())
+////                        )
+////                ))
+////                .entrySet().stream()
+////                .map(entry -> Map.of(
+////                        "Artist", entry.getKey(),
+////                        "Albums", entry.getValue().entrySet().stream()
+////                                .map(albumEntry -> Map.of(
+////                                        "AlbumInfo", albumEntry.getKey(),
+////                                        "Tracks", albumEntry.getValue()
+////                                ))
+////                                .toList()
+////                ))
+////                .toList();
 //    }
 }
