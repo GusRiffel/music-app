@@ -8,7 +8,7 @@ import java.util.List;
 
 @Setter
 @Getter
-public class APIResponseDto {
+public class APISearchResponseDto {
     @JsonProperty("data")
     List<ArtistDto> data;
 

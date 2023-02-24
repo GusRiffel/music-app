@@ -1,5 +1,7 @@
 package com.gusriffel.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -8,6 +10,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ArtistDtoJsonDeserializer extends JsonDeserializer<ArtistDto> {
@@ -22,18 +25,15 @@ public class ArtistDtoJsonDeserializer extends JsonDeserializer<ArtistDto> {
                 .pictureXL(root.artist.picture_xl)
                 .albums(List.of(
                         AlbumDto.builder()
+                                .id(root.album.id)
                                 .title(root.album.title)
                                 .coverSmall(root.album.cover_small)
                                 .coverMedium(root.album.cover_medium)
                                 .coverBig(root.album.cover_big)
                                 .coverXL(root.album.cover_xl)
                                 .trackListUrl(root.album.tracklist)
-                                .tracks(List.of(
-                                        TrackDto.builder()
-                                                .title(root.title)
-                                                .preview(root.preview)
-                                                .build()
-                                ))
+                                .tracks(new ArrayList<>()
+                                )
                                 .build()
                 )).build();
     }
@@ -41,8 +41,6 @@ public class ArtistDtoJsonDeserializer extends JsonDeserializer<ArtistDto> {
     @Getter
     @Setter
     private static class Root {
-        private String title;
-        private String preview;
         private AlbumJson album;
         private ArtistJson artist;
     }
@@ -50,6 +48,7 @@ public class ArtistDtoJsonDeserializer extends JsonDeserializer<ArtistDto> {
     @Getter
     @Setter
     private static class AlbumJson {
+        private int id;
         private String title;
         private String cover_small;
         private String cover_medium;

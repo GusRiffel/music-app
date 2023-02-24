@@ -1,5 +1,6 @@
 package com.gusriffel.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,6 +11,7 @@ import java.util.List;
 @Setter
 @Builder
 public class AlbumDto {
+    private int id;
     private String title;
     private String coverSmall;
     private String coverMedium;

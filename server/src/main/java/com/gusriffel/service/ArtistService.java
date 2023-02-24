@@ -1,10 +1,6 @@
 package com.gusriffel.service;
 
-import com.gusriffel.dto.APIResponseDto;
-import com.gusriffel.dto.AlbumDto;
-import com.gusriffel.dto.ArtistDto;
-import com.gusriffel.dto.TrackDto;
-import lombok.extern.log4j.Log4j2;
+import com.gusriffel.dto.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -13,10 +9,11 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 public class ArtistService {
@@ -33,42 +30,46 @@ public class ArtistService {
                 .build();
     }
 
-    public Object getArtist(String artist) {
-        List<ArtistDto> artistDtos = artistRequest(artist);
-        List<AlbumDto> albumDtos = artistDtos.stream().map(ArtistDto::getAlbums).flatMap(Collection::stream).toList();
-        List<AlbumDto> filteredAlbums = new ArrayList<>(albumDtos.stream()
-                .distinct()
-                .collect(Collectors.toMap(AlbumDto::getTitle, Function.identity(), (album1, album2) -> album1))
-                .values());
-        return filteredAlbums.size();
+    public ArtistDto getArtist(String artist) {
+        List<ArtistDto> artistDto = artistRequest(artist);
+        return formatRequest(artistDto);
     }
 
     private List<ArtistDto> artistRequest(String artist) {
         String composedUrl = baseUrl + artist;
-        Mono<APIResponseDto> apiResponseDtoMono = request(composedUrl);
-        Mono<String> nextMono = apiResponseDtoMono.map(APIResponseDto::getNext);
+        Mono<APISearchResponseDto> apiResponseDtoMono = request(composedUrl);
+        Mono<String> nextMono = apiResponseDtoMono.map(APISearchResponseDto::getNext);
         String nextPage = nextMono.block();
         assert nextPage != null;
         String startURL = nextPage.substring(0, nextPage.length() - 2) + 0;
 
         return getAllRequestPages(startURL)
-                .map(APIResponseDto::getData)
+                .map(APISearchResponseDto::getData)
                 .toStream()
                 .flatMap(Collection::stream)
                 .filter(artistDto -> artistDto.getName().equalsIgnoreCase(artist))
                 .toList();
     }
 
-    private Mono<APIResponseDto> request(String url) {
+    private Mono<APISearchResponseDto> request(String url) {
         return webClient.get()
                 .uri(url)
                 .header("X-RapidAPI-Key", apiKey)
                 .header("X-RapidAPI-Host", apiHost)
                 .retrieve()
-                .bodyToMono(APIResponseDto.class);
+                .bodyToMono(APISearchResponseDto.class);
     }
 
-    private Flux<APIResponseDto> getAllRequestPages(String url) {
+    private Mono<APITrackListResponseDto> getTrackList(String url) {
+        return webClient.get()
+                .uri(url)
+                .header("X-RapidAPI-Key", apiKey)
+                .header("X-RapidAPI-Host", apiHost)
+                .retrieve()
+                .bodyToMono(APITrackListResponseDto.class);
+    }
+
+    private Flux<APISearchResponseDto> getAllRequestPages(String url) {
         return request(url)
                 .expand(data -> {
                     String getNextPage = data.getNext();
@@ -80,34 +81,30 @@ public class ArtistService {
                 });
     }
 
-//    private ArtistDto formatRequest(List<ArtistDto> artistDto) {
-//        List<AlbumDto> albumDtos = artistDto.stream().map(ArtistDto::getAlbums).flatMap(Collection::stream).toList();
-////        ArtistDto.builder()
-////                .name(artistDto.get(0).getName())
-////                .pictureSmall(artistDto.get(0).getPictureSmall())
-////                .pictureMedium(artistDto.get(0).getPictureMedium())
-////                .pictureBig(artistDto.get(0).getPictureBig())
-////                .pictureXL(artistDto.get(0).getPictureXL())
-////                .albums(
-////                ))
-////        return artistDto.stream()
-////                .collect(Collectors.groupingBy(
-////                        ArtistDto::getName,
-////                        Collectors.groupingBy(
-////                                ArtistDto::getAlbums,
-////                                Collectors.mapping(ArtistDto::getName, Collectors.toList())
-////                        )
-////                ))
-////                .entrySet().stream()
-////                .map(entry -> Map.of(
-////                        "Artist", entry.getKey(),
-////                        "Albums", entry.getValue().entrySet().stream()
-////                                .map(albumEntry -> Map.of(
-////                                        "AlbumInfo", albumEntry.getKey(),
-////                                        "Tracks", albumEntry.getValue()
-////                                ))
-////                                .toList()
-////                ))
-////                .toList();
-//    }
+    private ArtistDto formatRequest(List<ArtistDto> artistDto) {
+        List<AlbumDto> albumsDto = artistDto.stream().map(ArtistDto::getAlbums).flatMap(Collection::stream).toList();
+        List<AlbumDto> filteredAlbums = new ArrayList<>(albumsDto.stream()
+                .distinct()
+                .collect(Collectors.toMap(AlbumDto::getTitle, Function.identity(), (album1, album2) -> album1))
+                .values());
+
+        return ArtistDto.builder()
+                .name(artistDto.get(0).getName())
+                .pictureSmall(artistDto.get(0).getPictureSmall())
+                .pictureMedium(artistDto.get(0).getPictureMedium())
+                .pictureBig(artistDto.get(0).getPictureBig())
+                .pictureXL(artistDto.get(0).getPictureXL())
+                .albums(populateAlbumTrackList(filteredAlbums).toFuture().join())
+                .build();
+    }
+
+    private Mono<List<AlbumDto>> populateAlbumTrackList(List<AlbumDto> albumList) {
+        return Flux.fromIterable(albumList)
+                .flatMapSequential(album -> getTrackList(album.getTrackListUrl())
+                        .map(trackList -> {
+                            album.setTracks(trackList.getData());
+                            return album;
+                        }))
+                .collectList();
+    }
 }
